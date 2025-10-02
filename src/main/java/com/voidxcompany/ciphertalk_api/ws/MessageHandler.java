@@ -16,7 +16,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class Handler implements WebSocketHandler {
+public class MessageHandler implements WebSocketHandler {
 
     private final SessionManager sessionManager;
     private final MessageService messageService;
