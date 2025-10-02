@@ -10,16 +10,17 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SessionManager {
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
 
-    public void addSession(String userId, WebSocketSession session) {
-        sessions.put(userId, session);
+    public void addSession(Long userId, String roomAddress, WebSocketSession session) {
+        String key = userId + "_" + roomAddress;
+        sessions.put(key, session);
     }
 
     public void removeSession(WebSocketSession session) {
         sessions.values().remove(session);
     }
 
-    public WebSocketSession getSession(String pubKey) {
-        return sessions.get(pubKey);
+    public WebSocketSession getSession(String key) {
+        return sessions.get(key);
     }
 
     public Map<String, WebSocketSession> getAllSessions() {
