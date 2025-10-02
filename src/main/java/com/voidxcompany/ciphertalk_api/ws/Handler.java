@@ -1,23 +1,25 @@
 package com.voidxcompany.ciphertalk_api.ws;
 
-import com.voidxcompany.ciphertalk_api.model.Room;
-import com.voidxcompany.ciphertalk_api.model.RoomControl;
-import com.voidxcompany.ciphertalk_api.model.RoomVisibility;
-import com.voidxcompany.ciphertalk_api.model.WebSocketConnectionParams;
+import com.voidxcompany.ciphertalk_api.model.*;
 import com.voidxcompany.ciphertalk_api.repository.RoomControlRepository;
 import com.voidxcompany.ciphertalk_api.repository.RoomRepository;
+import com.voidxcompany.ciphertalk_api.service.MessageService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.web.socket.CloseStatus;
-import org.springframework.web.socket.WebSocketHandler;
-import org.springframework.web.socket.WebSocketMessage;
-import org.springframework.web.socket.WebSocketSession;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.web.socket.*;
 
 import java.io.IOException;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class Handler implements WebSocketHandler {
+
+    private final SessionManager sessionManager;
+    private final MessageService messageService;
 
     private final RoomRepository roomRepository;
     private final RoomControlRepository roomControlRepository;
@@ -39,6 +41,7 @@ public class Handler implements WebSocketHandler {
 
                     roomControl.addUser(params.getUserId());
                     roomControlRepository.save(roomControl);
+                    sessionManager.addSession(params.getUserId(), params.getRoomAddress(), session);
                 } else {
                     session.close(CloseStatus.POLICY_VIOLATION.withReason("Room is full"));
                     return;
@@ -55,9 +58,34 @@ public class Handler implements WebSocketHandler {
 
     }
 
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     @Override
     public void handleMessage(WebSocketSession session, WebSocketMessage<?> message) throws Exception {
+        if (message instanceof TextMessage text) {
+            String messageAsString = text.getPayload();
 
+            try {
+                ChatMessage chatMessage = parseTextMessageToObject(messageAsString);
+                log.info("Received message: {}", chatMessage);
+
+                String room = chatMessage.getRoomAddress();
+                RoomControl roomControl = getRoomControl(room);
+
+                for (Long user : roomControl.getUsers()) {
+                    String sessionToken = user + "_" + room;
+                    WebSocketSession targetSession = sessionManager.getSession(sessionToken);
+                    if (targetSession != null && targetSession.isOpen()) {
+                        targetSession.sendMessage(new TextMessage(messageAsString));
+                    }
+                }
+
+                messageService.storeMessage(room, chatMessage);
+            } catch (Exception ex) {
+                log.error("Error processing message: {}",ex.getMessage(),ex);
+                session.sendMessage(new TextMessage("Error: Invalid message format"));
+            }
+        }
     }
 
     @Override
@@ -102,6 +130,17 @@ public class Handler implements WebSocketHandler {
         }
 
         return new WebSocketConnectionParams(roomAddress, userId, password);
+    }
+
+    private ChatMessage parseTextMessageToObject(String messageAsString) {
+        try {
+            ChatMessage chatMessage = objectMapper.readValue(messageAsString, ChatMessage.class);
+            chatMessage.setMessageId("msg-" + UUID.randomUUID().toString());
+            return chatMessage;
+        } catch (Exception ex) {
+            log.error("Error processing message: {}",ex.getMessage(),ex);
+            throw new RuntimeException("Failed to parse message", ex);
+        }
     }
 
     private Long parseLongSafely(String value) {
