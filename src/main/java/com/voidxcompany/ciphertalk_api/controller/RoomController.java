@@ -2,7 +2,6 @@ package com.voidxcompany.ciphertalk_api.controller;
 
 import com.voidxcompany.ciphertalk_api.controller.request.CreateRoomRequest;
 import com.voidxcompany.ciphertalk_api.model.Room;
-import com.voidxcompany.ciphertalk_api.model.RoomControl;
 import com.voidxcompany.ciphertalk_api.repository.RoomControlRepository;
 import com.voidxcompany.ciphertalk_api.repository.RoomRepository;
 import lombok.RequiredArgsConstructor;
@@ -10,7 +9,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequiredArgsConstructor
