@@ -1,5 +1,6 @@
 package com.voidxcompany.ciphertalk_api.ws;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.voidxcompany.ciphertalk_api.model.*;
 import com.voidxcompany.ciphertalk_api.repository.RoomControlRepository;
 import com.voidxcompany.ciphertalk_api.repository.RoomRepository;
@@ -7,10 +8,10 @@ import com.voidxcompany.ciphertalk_api.service.MessageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.web.socket.*;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -42,6 +43,11 @@ public class MessageHandler implements WebSocketHandler {
                     roomControl.addUser(params.getUserId());
                     roomControlRepository.save(roomControl);
                     sessionManager.addSession(params.getUserId(), params.getRoomAddress(), session);
+
+                    List<String> messages = messageService.retrieveMessages(params.getRoomAddress());
+                    for (String msg : messages) {
+                        session.sendMessage(new TextMessage(msg));
+                    }
                 } else {
                     session.close(CloseStatus.POLICY_VIOLATION.withReason("Room is full"));
                     return;
@@ -80,7 +86,7 @@ public class MessageHandler implements WebSocketHandler {
                     }
                 }
 
-                messageService.storeMessage(room, chatMessage);
+                messageService.storeMessage(room, messageAsString);
             } catch (Exception ex) {
                 log.error("Error processing message: {}",ex.getMessage(),ex);
                 session.sendMessage(new TextMessage("Error: Invalid message format"));
