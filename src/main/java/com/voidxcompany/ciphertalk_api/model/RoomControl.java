@@ -29,6 +29,11 @@ public class RoomControl {
         this.currentUsers++;
     }
 
+    public void removeUser(Long userId) {
+        this.users.remove(userId);
+        this.currentUsers--;
+    }
+
     public RoomControl(Room room) {
         this.roomAddress = room.getAddress();
         this.maxUsers = room.getMaxUsers();

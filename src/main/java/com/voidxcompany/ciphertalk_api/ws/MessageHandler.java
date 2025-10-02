@@ -101,7 +101,12 @@ public class MessageHandler implements WebSocketHandler {
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) throws Exception {
-
+        WebSocketConnectionParams params = extractConnectionParams(session);
+        String roomAddress = params.getRoomAddress();
+        RoomControl roomControl = getRoomControl(roomAddress);
+        roomControl.removeUser(params.getUserId());
+        roomControlRepository.save(roomControl);
+        sessionManager.removeSession(session);
     }
 
     @Override
