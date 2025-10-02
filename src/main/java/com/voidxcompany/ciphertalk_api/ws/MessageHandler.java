@@ -96,7 +96,13 @@ public class MessageHandler implements WebSocketHandler {
 
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
-
+        log.error("Erro de transporte WebSocket: {}", exception.getMessage());
+        sessionManager.removeSession(session);
+        try {
+            session.close();
+        } catch (IOException e) {
+            log.error("Erro ao fechar sessão após falha de transporte: {}", e.getMessage());
+        }
     }
 
     @Override
