@@ -17,21 +17,23 @@ import java.sql.Timestamp;
 public class ChatMessage implements Serializable {
 
     @Id
+    private String id;
+
     @JsonProperty("message_id")
     private String messageId;
 
     @JsonProperty("message")
     private String message;
-    
+
     @JsonProperty("sender")
     private Long sender;
-    
+
     @JsonProperty("timestamp")
     private Timestamp timestamp;
-    
+
     @JsonProperty("room_address")
     private String roomAddress;
-    
+
     @JsonProperty("type")
     private ChatMessageType type;
 }
