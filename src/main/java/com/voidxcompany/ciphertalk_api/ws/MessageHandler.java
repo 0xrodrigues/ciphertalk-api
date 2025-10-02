@@ -135,7 +135,7 @@ public class MessageHandler implements WebSocketHandler {
     private ChatMessage parseTextMessageToObject(String messageAsString) {
         try {
             ChatMessage chatMessage = objectMapper.readValue(messageAsString, ChatMessage.class);
-            chatMessage.setMessageId("msg-" + UUID.randomUUID().toString());
+            chatMessage.setMessageId("msg-" + UUID.randomUUID());
             return chatMessage;
         } catch (Exception ex) {
             log.error("Error processing message: {}",ex.getMessage(),ex);
