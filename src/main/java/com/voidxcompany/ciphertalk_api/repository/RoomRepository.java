@@ -25,7 +25,8 @@ public class RoomRepository {
                 .addValue("name", domain.getName())
                 .addValue("description", domain.getDescription())
                 .addValue("visibility", domain.getVisibility().name())
-                .addValue("createdAt", domain.getCreatedAt().toString());
+                .addValue("createdAt", domain.getCreatedAt().toString())
+                .addValue("maxUsers", domain.getMaxUsers());
         jdbcTemplate.update(RoomQuery.INSERT_ROOM, params);
         roomControlRepository.save(new RoomControl(domain));
     }
@@ -47,6 +48,7 @@ public class RoomRepository {
             room.setAddress(rs.getString("address"));
             room.setName(rs.getString("name"));
             room.setDescription(rs.getString("description"));
+            room.setMaxUsers(rs.getInt("max_users"));
             room.setVisibility(RoomVisibility.valueOf(rs.getString("visibility")));
             room.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
             return room;

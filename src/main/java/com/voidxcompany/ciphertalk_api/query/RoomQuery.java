@@ -2,12 +2,12 @@ package com.voidxcompany.ciphertalk_api.query;
 
 public class RoomQuery {
     public static final String INSERT_ROOM = """
-                INSERT INTO rooms (address, name, description, visibility, created_at)
-                VALUES (:address, :name, :description, :visibility, :createdAt)
+                INSERT INTO rooms (address, name, description, max_users, visibility, created_at)
+                VALUES (:address, :name, :description, :maxUsers, :visibility, :createdAt)
             """;
 
     public static final String GET_ALL_PUBLIC_ROOMS = """
-                SELECT id, address, name, description, visibility, created_at
+                SELECT id, address, name, description, max_users, visibility, created_at
                 FROM rooms
                 WHERE visibility = 'PUBLIC'
                 ORDER BY created_at DESC
