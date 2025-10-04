@@ -14,6 +14,6 @@ public class RoomQuery {
             """;
 
     public static final String GET_ROOM_BY_ADDRESS = """
-            select id, address, name, description, visibility, created_at from rooms where address = :address
+            select id, address, name, description, max_users, visibility, created_at from rooms where address = :address
             """;
 }
