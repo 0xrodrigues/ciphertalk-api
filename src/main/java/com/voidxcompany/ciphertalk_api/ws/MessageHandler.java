@@ -12,6 +12,7 @@ import org.springframework.web.socket.*;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -48,6 +49,17 @@ public class MessageHandler implements WebSocketHandler {
                     for (String msg : messages) {
                         session.sendMessage(new TextMessage(msg));
                     }
+
+                    Map<String, WebSocketSession> sessions = sessionManager.getAllSessions();
+                    sessions.forEach((key, value) -> {
+                        if (key.contains(params.getRoomAddress())) {
+                            try {
+                                value.sendMessage(new TextMessage("User " + params.getUserId() + " has been logged in"));
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
+                        }
+                    });
                 } else {
                     session.close(CloseStatus.POLICY_VIOLATION.withReason("Room is full"));
                     return;
