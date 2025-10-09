@@ -49,7 +49,7 @@ public class MessageHandler implements WebSocketHandler {
                     for (String msg : messages) {
                         session.sendMessage(new TextMessage(msg));
                     }
-                    notifySessions(params.getRoomAddress(), "User " + params.getUserId() + " has been logged in");
+                    NotifyRoom(params.getRoomAddress(), new UserEventNotification(params.getUserId(), "CONNECTED"));
                 } else {
                     session.close(CloseStatus.POLICY_VIOLATION.withReason("Room is full"));
                     return;
@@ -114,7 +114,7 @@ public class MessageHandler implements WebSocketHandler {
         RoomControl roomControl = getRoomControl(roomAddress);
         roomControl.removeUser(params.getUserId());
         roomControlRepository.save(roomControl);
-        notifySessions(params.getRoomAddress(), "User " + params.getUserId() + " has been disconnected");
+        NotifyRoom(params.getRoomAddress(), new UserEventNotification(params.getUserId(), "DISCONNECTED"));
         sessionManager.removeSession(session);
     }
 
@@ -123,12 +123,13 @@ public class MessageHandler implements WebSocketHandler {
         return false;
     }
 
-    private void notifySessions(String address, String message) {
+    private void NotifyRoom(String address, UserEventNotification notification) {
         Map<String, WebSocketSession> sessions = sessionManager.getAllSessions();
         sessions.forEach((key, value) -> {
             if (key.contains(address)) {
                 try {
-                    value.sendMessage(new TextMessage(message));
+                    String nofiticationAsString = objectMapper.writeValueAsString(notification);
+                    value.sendMessage(new TextMessage(nofiticationAsString));
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
