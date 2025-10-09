@@ -49,17 +49,7 @@ public class MessageHandler implements WebSocketHandler {
                     for (String msg : messages) {
                         session.sendMessage(new TextMessage(msg));
                     }
-
-                    Map<String, WebSocketSession> sessions = sessionManager.getAllSessions();
-                    sessions.forEach((key, value) -> {
-                        if (key.contains(params.getRoomAddress())) {
-                            try {
-                                value.sendMessage(new TextMessage("User " + params.getUserId() + " has been logged in"));
-                            } catch (IOException e) {
-                                throw new RuntimeException(e);
-                            }
-                        }
-                    });
+                    notifySessions(params.getRoomAddress(), "User " + params.getUserId() + " has been logged in");
                 } else {
                     session.close(CloseStatus.POLICY_VIOLATION.withReason("Room is full"));
                     return;
@@ -124,12 +114,26 @@ public class MessageHandler implements WebSocketHandler {
         RoomControl roomControl = getRoomControl(roomAddress);
         roomControl.removeUser(params.getUserId());
         roomControlRepository.save(roomControl);
+        notifySessions(params.getRoomAddress(), "User " + params.getUserId() + " has been disconnected");
         sessionManager.removeSession(session);
     }
 
     @Override
     public boolean supportsPartialMessages() {
         return false;
+    }
+
+    private void notifySessions(String address, String message) {
+        Map<String, WebSocketSession> sessions = sessionManager.getAllSessions();
+        sessions.forEach((key, value) -> {
+            if (key.contains(address)) {
+                try {
+                    value.sendMessage(new TextMessage(message));
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
     }
 
     private WebSocketConnectionParams extractConnectionParams(WebSocketSession session) {
