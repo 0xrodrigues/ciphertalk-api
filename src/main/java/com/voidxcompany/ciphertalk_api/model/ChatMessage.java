@@ -6,7 +6,6 @@ import org.springframework.data.redis.core.RedisHash;
 
 import java.io.Serializable;
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
 
 @Getter
 @Setter
