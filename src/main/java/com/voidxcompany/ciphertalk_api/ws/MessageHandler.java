@@ -70,6 +70,7 @@ public class MessageHandler implements WebSocketHandler {
 
     @Override
     public void handleMessage(WebSocketSession session, WebSocketMessage<?> message) throws Exception {
+        WebSocketConnectionParams params = extractConnectionParams(session);
         if (message instanceof TextMessage text) {
             String messageAsString = text.getPayload();
 
@@ -77,18 +78,17 @@ public class MessageHandler implements WebSocketHandler {
                 ChatMessage chatMessage = parseTextMessageToObject(messageAsString);
                 log.info("Received message: {}", chatMessage);
 
-                String room = chatMessage.getRoomAddress();
-                RoomControl roomControl = getRoomControl(room);
+                RoomControl roomControl = getRoomControl(params.getRoomAddress());
 
                 for (Long user : roomControl.getUsers()) {
-                    String sessionToken = user + "_" + room;
+                    String sessionToken = user + "_" + params.getRoomAddress();
                     WebSocketSession targetSession = sessionManager.getSession(sessionToken);
                     if (targetSession != null && targetSession.isOpen()) {
                         targetSession.sendMessage(new TextMessage(messageAsString));
                     }
                 }
 
-                messageService.storeMessage(room, messageAsString);
+                messageService.storeMessage(params.getRoomAddress(), messageAsString);
             } catch (Exception ex) {
                 log.error("Error processing message: {}",ex.getMessage(),ex);
                 session.sendMessage(new TextMessage("Error: Invalid message format"));
@@ -168,7 +168,7 @@ public class MessageHandler implements WebSocketHandler {
     private ChatMessage parseTextMessageToObject(String messageAsString) {
         try {
             ChatMessage chatMessage = objectMapper.readValue(messageAsString, ChatMessage.class);
-            chatMessage.setMessageId("msg-" + UUID.randomUUID());
+            chatMessage.setId("msg-" + UUID.randomUUID());
             return chatMessage;
         } catch (Exception ex) {
             log.error("Error processing message: {}",ex.getMessage(),ex);
