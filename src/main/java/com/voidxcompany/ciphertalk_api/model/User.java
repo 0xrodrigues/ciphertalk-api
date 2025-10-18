@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Tag {
-    private Long tagId;
-    private String name;
+public class User {
+    private Long userId;
+    private String username;
 }

@@ -21,36 +21,43 @@ public class RoomRepository {
     private final JdbcTemplate jdbcTemplate;
 
     private final RowMapper<Room> roomRowMapper = (rs, rowNum) -> Room.builder()
-            .id(rs.getLong("id"))
+            .roomId(rs.getLong("room_id"))
+            .address(rs.getString("address"))
             .name(rs.getString("name"))
             .description(rs.getString("description"))
-            .address(rs.getString("address"))
-            .isPublic(rs.getBoolean("is_public"))
+            .hostUserId(rs.getLong("host_user_id"))
+            .maxUsers(rs.getInt("max_users"))
+            .visibility(Room.RoomVisibility.valueOf(rs.getString("visibility")))
             .createdAt(rs.getTimestamp("created_at").toLocalDateTime())
+            .updatedAt(rs.getTimestamp("updated_at").toLocalDateTime())
             .build();
 
     private final RowMapper<Tag> tagRowMapper = (rs, rowNum) -> Tag.builder()
-            .id(rs.getLong("id"))
+            .tagId(rs.getLong("tag_id"))
             .name(rs.getString("name"))
             .build();
 
     public Room create(Room room) {
-        String sql = "INSERT INTO rooms (name, description, address, is_public, created_at) VALUES (?, ?, ?, ?, ?)";
+        String sql = """
+            INSERT INTO tb_room (address, name, description, host_user_id, max_users, visibility)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """;
         
         KeyHolder keyHolder = new GeneratedKeyHolder();
         
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-            ps.setString(1, room.getName());
-            ps.setString(2, room.getDescription());
-            ps.setString(3, room.getAddress());
-            ps.setBoolean(4, room.isPublic());
-            ps.setTimestamp(5, Timestamp.valueOf(room.getCreatedAt()));
+            ps.setString(1, room.getAddress());
+            ps.setString(2, room.getName());
+            ps.setString(3, room.getDescription());
+            ps.setLong(4, room.getHostUserId());
+            ps.setInt(5, room.getMaxUsers());
+            ps.setString(6, room.getVisibility().name());
             return ps;
         }, keyHolder);
 
         Long roomId = Objects.requireNonNull(keyHolder.getKey()).longValue();
-        room.setId(roomId);
+        room.setRoomId(roomId);
 
         // Insert tags if present
         if (room.getTags() != null && !room.getTags().isEmpty()) {
@@ -64,7 +71,7 @@ public class RoomRepository {
     }
 
     public Optional<Room> findById(Long id) {
-        String sql = "SELECT * FROM rooms WHERE id = ?";
+        String sql = "SELECT * FROM tb_room WHERE room_id = ?";
         List<Room> rooms = jdbcTemplate.query(sql, roomRowMapper, id);
         
         if (rooms.isEmpty()) {
@@ -72,12 +79,12 @@ public class RoomRepository {
         }
         
         Room room = rooms.getFirst();
-        room.setTags(findTagsByRoomId(room.getId()));
+        room.setTags(findTagsByRoomId(room.getRoomId()));
         return Optional.of(room);
     }
 
     public Optional<Room> findByAddress(String address) {
-        String sql = "SELECT * FROM rooms WHERE address = ?";
+        String sql = "SELECT * FROM tb_room WHERE address = ?";
         List<Room> rooms = jdbcTemplate.query(sql, roomRowMapper, address);
         
         if (rooms.isEmpty()) {
@@ -85,16 +92,16 @@ public class RoomRepository {
         }
         
         Room room = rooms.getFirst();
-        room.setTags(findTagsByRoomId(room.getId()));
+        room.setTags(findTagsByRoomId(room.getRoomId()));
         return Optional.of(room);
     }
 
     public List<Room> findPublicRooms() {
-        String sql = "SELECT * FROM rooms WHERE is_public = true ORDER BY created_at DESC";
+        String sql = "SELECT * FROM tb_room WHERE visibility = 'PUBLIC' ORDER BY created_at DESC";
         List<Room> rooms = jdbcTemplate.query(sql, roomRowMapper);
         
         for (Room room : rooms) {
-            room.setTags(findTagsByRoomId(room.getId()));
+            room.setTags(findTagsByRoomId(room.getRoomId()));
         }
         
         return rooms;
@@ -102,10 +109,10 @@ public class RoomRepository {
 
     public List<Room> searchRooms(String query) {
         String sql = """
-            SELECT DISTINCT r.* FROM rooms r
-            LEFT JOIN room_tags rt ON r.id = rt.room_id
-            LEFT JOIN tags t ON rt.tag_id = t.id
-            WHERE r.is_public = true
+            SELECT DISTINCT r.* FROM tb_room r
+            LEFT JOIN tb_room_tag rt ON r.room_id = rt.room_id
+            LEFT JOIN tb_tag t ON rt.tag_id = t.tag_id
+            WHERE r.visibility = 'PUBLIC'
             AND (
                 LOWER(r.name) LIKE LOWER(?)
                 OR LOWER(r.description) LIKE LOWER(?)
@@ -118,7 +125,7 @@ public class RoomRepository {
         List<Room> rooms = jdbcTemplate.query(sql, roomRowMapper, searchPattern, searchPattern, searchPattern);
         
         for (Room room : rooms) {
-            room.setTags(findTagsByRoomId(room.getId()));
+            room.setTags(findTagsByRoomId(room.getRoomId()));
         }
         
         return rooms;
@@ -126,22 +133,22 @@ public class RoomRepository {
 
     private List<Tag> findTagsByRoomId(Long roomId) {
         String sql = """
-            SELECT t.* FROM tags t
-            INNER JOIN room_tags rt ON t.id = rt.tag_id
+            SELECT t.* FROM tb_tag t
+            INNER JOIN tb_room_tag rt ON t.tag_id = rt.tag_id
             WHERE rt.room_id = ?
             """;
         return jdbcTemplate.query(sql, tagRowMapper, roomId);
     }
 
     private Long findOrCreateTag(String tagName) {
-        String selectSql = "SELECT id FROM tags WHERE name = ?";
-        List<Long> tagIds = jdbcTemplate.query(selectSql, (rs, rowNum) -> rs.getLong("id"), tagName);
+        String selectSql = "SELECT tag_id FROM tb_tag WHERE name = ?";
+        List<Long> tagIds = jdbcTemplate.query(selectSql, (rs, rowNum) -> rs.getLong("tag_id"), tagName);
         
         if (!tagIds.isEmpty()) {
             return tagIds.getFirst();
         }
         
-        String insertSql = "INSERT INTO tags (name) VALUES (?)";
+        String insertSql = "INSERT INTO tb_tag (name) VALUES (?)";
         KeyHolder keyHolder = new GeneratedKeyHolder();
         
         jdbcTemplate.update(connection -> {
@@ -154,7 +161,7 @@ public class RoomRepository {
     }
 
     private void linkRoomTag(Long roomId, Long tagId) {
-        String sql = "INSERT INTO room_tags (room_id, tag_id) VALUES (?, ?)";
+        String sql = "INSERT INTO tb_room_tag (room_id, tag_id) VALUES (?, ?)";
         jdbcTemplate.update(sql, roomId, tagId);
     }
 }

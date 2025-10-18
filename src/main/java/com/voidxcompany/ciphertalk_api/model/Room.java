@@ -13,11 +13,18 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Room {
-    private Long id;
+    private Long roomId;
+    private String address;
     private String name;
     private String description;
-    private String address;
-    private boolean isPublic;
+    private Long hostUserId;
+    private Integer maxUsers;
+    private RoomVisibility visibility;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     private List<Tag> tags;
+    
+    public enum RoomVisibility {
+        PUBLIC, PRIVATE
+    }
 }

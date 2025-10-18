@@ -13,11 +13,14 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class FindRoomResponse {
-    private Long id;
+    private Long roomId;
+    private String address;
     private String name;
     private String description;
-    private String address;
-    private boolean isPublic;
+    private Long hostUserId;
+    private Integer maxUsers;
+    private String visibility;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     private List<String> tags;
 }
