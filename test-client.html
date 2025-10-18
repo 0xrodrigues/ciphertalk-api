@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ciphertalk WebSocket Test Client</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        input, button {
+            padding: 10px;
+            margin: 5px;
+        }
+        #messages {
+            border: 1px solid #ccc;
+            height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+            margin: 10px 0;
+            background: #f9f9f9;
+        }
+        .message {
+            margin: 5px 0;
+            padding: 5px;
+        }
+        .join { color: green; }
+        .leave { color: red; }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            background: #e3f2fd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Ciphertalk WebSocket Test Client</h1>
+        
+        <div class="status" id="status">Disconnected</div>
+        
+        <div>
+            <input type="text" id="username" placeholder="Username" value="User1">
+            <input type="text" id="roomAddress" placeholder="Room Address" value="a1b2c3d4">
+            <button onclick="connect()">Connect</button>
+            <button onclick="disconnect()">Disconnect</button>
+        </div>
+        
+        <div>
+            <button onclick="joinRoom()">Join Room</button>
+            <button onclick="leaveRoom()">Leave Room</button>
+        </div>
+        
+        <div id="messages"></div>
+        
+        <div>
+            <input type="text" id="messageInput" placeholder="Type a message..." style="width: 70%;">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <strong>Participants:</strong> <span id="participantCount">0</span>
+        </div>
+    </div>
+
+    <script>
+        let stompClient = null;
+        let currentRoom = null;
+
+        function connect() {
+            const socket = new SockJS('http://localhost:8080/ws');
+            stompClient = Stomp.over(socket);
+            
+            stompClient.connect({}, function(frame) {
+                updateStatus('Connected', 'green');
+                console.log('Connected: ' + frame);
+            }, function(error) {
+                updateStatus('Error: ' + error, 'red');
+                console.error('Error: ' + error);
+            });
+        }
+
+        function disconnect() {
+            if (stompClient !== null) {
+                if (currentRoom) {
+                    leaveRoom();
+                }
+                stompClient.disconnect();
+                updateStatus('Disconnected', 'orange');
+            }
+        }
+
+        function joinRoom() {
+            const roomAddress = document.getElementById('roomAddress').value;
+            const username = document.getElementById('username').value;
+            
+            if (!stompClient || !stompClient.connected) {
+                alert('Please connect first!');
+                return;
+            }
+
+            currentRoom = roomAddress;
+            
+            // Subscribe to room messages
+            stompClient.subscribe('/topic/room/' + roomAddress, function(message) {
+                const payload = JSON.parse(message.body);
+                displayMessage(payload);
+                updateParticipantCount(payload.participantCount);
+            });
+
+            // Send join message
+            stompClient.send('/app/room/' + roomAddress + '/join', {}, JSON.stringify({
+                username: username
+            }));
+
+            updateStatus('Joined room: ' + roomAddress, 'green');
+        }
+
+        function leaveRoom() {
+            const roomAddress = document.getElementById('roomAddress').value;
+            const username = document.getElementById('username').value;
+
+            if (!stompClient || !currentRoom) {
+                return;
+            }
+
+            stompClient.send('/app/room/' + roomAddress + '/leave', {}, JSON.stringify({
+                username: username
+            }));
+
+            currentRoom = null;
+            updateStatus('Left room', 'orange');
+        }
+
+        function sendMessage() {
+            const roomAddress = document.getElementById('roomAddress').value;
+            const username = document.getElementById('username').value;
+            const content = document.getElementById('messageInput').value;
+
+            if (!content.trim()) {
+                return;
+            }
+
+            if (!stompClient || !currentRoom) {
+                alert('Please join a room first!');
+                return;
+            }
+
+            stompClient.send('/app/room/' + roomAddress + '/message', {}, JSON.stringify({
+                username: username,
+                content: content
+            }));
+
+            document.getElementById('messageInput').value = '';
+        }
+
+        function displayMessage(payload) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message ' + payload.type;
+            
+            const time = new Date(payload.timestamp).toLocaleTimeString();
+            
+            if (payload.type === 'message') {
+                messageDiv.innerHTML = `<strong>[${time}] ${payload.username}:</strong> ${payload.content}`;
+            } else {
+                messageDiv.innerHTML = `<em>[${time}] ${payload.content}</em>`;
+            }
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function updateStatus(message, color) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.style.background = color === 'green' ? '#c8e6c9' : 
+                                        color === 'red' ? '#ffcdd2' : '#e3f2fd';
+        }
+
+        function updateParticipantCount(count) {
+            document.getElementById('participantCount').textContent = count;
+        }
+
+        // Allow sending message with Enter key
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
